@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="100%" height="100%">
+  <defs>
+    <!-- Cyan glow filter -->
+    <filter id="cyanGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+    <linearGradient id="cyanGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="50%" stop-color="#22d3ee" />
+      <stop offset="100%" stop-color="#06b6d4" />
+    </linearGradient>
+    <linearGradient id="pinkGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f43f5e" />
+      <stop offset="50%" stop-color="#ec4899" />
+      <stop offset="100%" stop-color="#d946ef" />
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fde047" />
+      <stop offset="100%" stop-color="#eab308" />
+    </linearGradient>
+  </defs>
+
+  <!-- Yellow Accent Bracket at bottom right -->
+  <path d="M 140 326 L 332 225 L 332 312 L 140 326 Z" fill="url(#goldGrad)" opacity="0.95" />
+
+  <!-- Antennas (Hot Pink) -->
+  <!-- Left antenna -->
+  <line x1="172" y1="102" x2="118" y2="44" stroke="#ec4899" stroke-width="9" stroke-linecap="round" />
+  <circle cx="118" cy="44" r="8" fill="#ec4899" />
+  <!-- Right antenna -->
+  <line x1="208" y1="102" x2="230" y2="48" stroke="#ec4899" stroke-width="9" stroke-linecap="round" />
+  <circle cx="230" cy="48" r="8" fill="#ec4899" />
+
+  <!-- TV Outline Box (Hot Pink) -->
+  <rect x="58" y="102" width="274" height="206" rx="28" ry="28" fill="none" stroke="#ec4899" stroke-width="16" stroke-linejoin="round" />
+
+  <!-- Inner Play Triangle (Hot Pink) -->
+  <polygon points="86,132 210,192 86,252" fill="#ec4899" />
+
+  <!-- LKTV Text (Cyan/Electric Blue) -->
+  <text x="114" y="230" font-family="'Plus Jakarta Sans', system-ui, sans-serif" font-weight="900" font-size="76" letter-spacing="2" fill="#22d3ee" style="text-shadow: 0 0 8px rgba(34,211,238,0.6);">LKTV</text>
+
+  <!-- Orbital Cyan Swoosh -->
+  <path d="M 22 308 C 28 322, 54 330, 80 322 C 160 298, 280 230, 390 118 C 392 116, 388 126, 376 138 C 274 246, 154 316, 68 334 C 44 339, 20 330, 16 316 C 14 310, 18 304, 22 308 Z" fill="url(#cyanGrad)" filter="url(#cyanGlow)" />
+</svg>

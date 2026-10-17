@@ -1,0 +1,6 @@
+{
+  "name": "LK-Clientes",
+  "description": "Sistema de gestão e agendamento de cobrança de mensalistas com controle de saldos, alertas, backup e segurança.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
