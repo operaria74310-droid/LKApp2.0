@@ -60,7 +60,7 @@ export const BackupModal: React.FC<BackupModalProps> = ({
       if (result.success) {
         setImportStatus({
           type: 'success',
-          message: `${result.message} (${result.clientCount} clientes, ${result.paymentCount} registros de pagamentos)`,
+          message: `${result.message} (${result.clientCount} clientes, ${result.paymentCount} recebimentos, ${result.expenseCount ?? 0} pagamentos/saídas)`,
         });
         onDataRestored();
       } else {

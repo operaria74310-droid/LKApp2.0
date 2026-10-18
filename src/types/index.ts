@@ -31,10 +31,34 @@ export interface PaymentRecord {
   notes?: string;
 }
 
+export type ExpenseType = 'server' | 'app';
+
+export interface ExpenseRecord {
+  id: string;
+  type: ExpenseType; // 'server' | 'app'
+  title: string;
+  server?: string;
+  clientName?: string;
+  app?: string;
+  mac?: string;
+  key?: string;
+  amount: number; // Valor retirado
+  bank: string; // Conta de retirada do valor
+  date: string; // YYYY-MM-DD
+  timestamp: number;
+  notes?: string;
+}
+
 export interface BankSummary {
   bank: string;
-  monthlyTotal: number;
-  dailyTotal: number;
+  incomeMonthly: number;
+  incomeDaily: number;
+  expenseMonthly: number;
+  expenseDaily: number;
+  netMonthly: number;
+  netDaily: number;
+  monthlyTotal: number; // netMonthly
+  dailyTotal: number; // netDaily
   count: number;
 }
 

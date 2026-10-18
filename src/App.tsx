@@ -9,8 +9,10 @@ import {
   CheckCircle,
   AlertCircle,
   Info,
+  Server,
+  Smartphone,
 } from 'lucide-react';
-import { Client, PaymentRecord, SuggestionStore, FilterStatus } from './types';
+import { Client, PaymentRecord, ExpenseRecord, SuggestionStore, FilterStatus } from './types';
 import { Logo } from './components/Logo';
 import { AlertBanner } from './components/AlertBanner';
 import { FinancialSummary } from './components/FinancialSummary';
@@ -18,6 +20,8 @@ import { ClientList } from './components/ClientList';
 import { ClientFormModal } from './components/ClientFormModal';
 import { PaymentModal } from './components/PaymentModal';
 import { RescheduleModal } from './components/RescheduleModal';
+import { ServerPaymentModal } from './components/ServerPaymentModal';
+import { AppPaymentModal } from './components/AppPaymentModal';
 import { PasswordAuthModal } from './components/PasswordAuthModal';
 import { ConferenceModal } from './components/ConferenceModal';
 import { BackupModal } from './components/BackupModal';
@@ -26,16 +30,19 @@ import {
   saveClients,
   loadPayments,
   savePayments,
+  loadExpenses,
+  saveExpenses,
   loadSuggestions,
   calculateFinancialSummary,
-  resetMonthPayments,
-  removeAllPayments,
+  resetMonthPaymentsAndExpenses,
+  removeAllPaymentsAndExpenses,
 } from './utils/storage';
 import { getTodayISO, getDateDiffInfo, formatDateBR, formatBRL } from './utils/date';
 
 export default function App() {
   const [clients, setClients] = useState<Client[]>([]);
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
+  const [expenses, setExpenses] = useState<ExpenseRecord[]>([]);
   const [suggestions, setSuggestions] = useState<SuggestionStore>({
     servers: [],
     apps: [],
@@ -56,6 +63,10 @@ export default function App() {
 
   const [isRescheduleModalOpen, setIsRescheduleModalOpen] = useState(false);
   const [clientForReschedule, setClientForReschedule] = useState<Client | null>(null);
+
+  // New Outgoing Payment Modals
+  const [isServerPaymentModalOpen, setIsServerPaymentModalOpen] = useState(false);
+  const [isAppPaymentModalOpen, setIsAppPaymentModalOpen] = useState(false);
 
   const [isConferenceModalOpen, setIsConferenceModalOpen] = useState(false);
   const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
@@ -78,6 +89,7 @@ export default function App() {
   const reloadData = () => {
     setClients(loadClients());
     setPayments(loadPayments());
+    setExpenses(loadExpenses());
     setSuggestions(loadSuggestions());
   };
 
@@ -101,8 +113,8 @@ export default function App() {
 
   // Financial calculations
   const financial = useMemo(() => {
-    return calculateFinancialSummary(payments);
-  }, [payments]);
+    return calculateFinancialSummary(payments, expenses);
+  }, [payments, expenses]);
 
   // Current Month Label (e.g. Outubro 2026)
   const monthLabel = useMemo(() => {
@@ -142,7 +154,7 @@ export default function App() {
 
     setClients(updated);
     saveClients(updated);
-    setSuggestions(loadSuggestions()); // Update remembered options
+    setSuggestions(loadSuggestions());
   };
 
   // Handler: Delete Client
@@ -155,7 +167,7 @@ export default function App() {
     }
   };
 
-  // Handler: Confirm Payment / Advance Payment
+  // Handler: Confirm Payment / Advance Payment from Client
   const handleConfirmPayment = (data: {
     client: Client;
     paymentAmount: number;
@@ -188,7 +200,7 @@ export default function App() {
     setPayments(updatedPayments);
     savePayments(updatedPayments);
 
-    // 2. Update Client due date and sync bank/price if altered
+    // 2. Update Client due date and sync bank if altered
     const updatedClients = clients.map((c) => {
       if (c.id === client.id) {
         return {
@@ -206,7 +218,7 @@ export default function App() {
 
     showToast(
       advanceMonths > 1
-        ? `Adiantamento de ${advanceMonths} meses (${formatBRL(paymentAmount)}) confirmado com sucesso! Próximo vencimento: ${formatDateBR(nextDueDate)}`
+        ? `Adiantamento de ${advanceMonths} meses (${formatBRL(paymentAmount)}) confirmado! Próximo vencimento: ${formatDateBR(nextDueDate)}`
         : `Pagamento de ${formatBRL(paymentAmount)} confirmado! Próximo vencimento: ${formatDateBR(nextDueDate)}`
     );
 
@@ -226,6 +238,68 @@ export default function App() {
       const waUrl = `https://wa.me/${phoneWithDDI}?text=${encodeURIComponent(text)}`;
       window.open(waUrl, '_blank');
     }
+  };
+
+  // Handler: Confirm Server Payment (Saída / Despesa de Servidor)
+  const handleConfirmServerPayment = (data: {
+    server: string;
+    amount: number;
+    date: string;
+    bank: string;
+    notes?: string;
+  }) => {
+    const newExpense: ExpenseRecord = {
+      id: 'e_srv_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 5),
+      type: 'server',
+      title: `Pagamento Servidor ${data.server}`,
+      server: data.server,
+      amount: data.amount,
+      bank: data.bank,
+      date: data.date,
+      timestamp: Date.now(),
+      notes: data.notes,
+    };
+
+    const updated = [newExpense, ...expenses];
+    setExpenses(updated);
+    saveExpenses(updated);
+    setSuggestions(loadSuggestions());
+
+    showToast(`Pagamento do Servidor ${data.server} (${formatBRL(data.amount)}) registrado na conta ${data.bank}!`);
+  };
+
+  // Handler: Confirm App Payment (Saída / Despesa de Aplicativo)
+  const handleConfirmAppPayment = (data: {
+    clientName: string;
+    app: string;
+    mac: string;
+    key: string;
+    amount: number;
+    date: string;
+    bank: string;
+    notes?: string;
+  }) => {
+    const newExpense: ExpenseRecord = {
+      id: 'e_app_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 5),
+      type: 'app',
+      title: `Pagamento App ${data.app} - ${data.clientName}`,
+      clientName: data.clientName,
+      app: data.app,
+      mac: data.mac,
+      key: data.key,
+      amount: data.amount,
+      bank: data.bank,
+      date: data.date,
+      timestamp: Date.now(),
+      notes: data.notes,
+    };
+
+    const updated = [newExpense, ...expenses];
+    setExpenses(updated);
+    saveExpenses(updated);
+    setSuggestions(loadSuggestions());
+
+    showToast(`Pagamento do App ${data.app} para "${data.clientName}" (${formatBRL(data.amount)}) registrado na conta ${data.bank}!`);
   };
 
   // Handler: Reschedule Due Date
@@ -252,21 +326,31 @@ export default function App() {
     const updated = payments.filter((p) => p.id !== paymentId);
     setPayments(updated);
     savePayments(updated);
-    showToast('Lançamento removido da conferência.');
+    showToast('Recebimento removido da conferência.');
+  };
+
+  // Handler: Delete individual expense from conference
+  const handleDeleteExpense = (expenseId: string) => {
+    const updated = expenses.filter((e) => e.id !== expenseId);
+    setExpenses(updated);
+    saveExpenses(updated);
+    showToast('Pagamento/despesa removida da conferência.');
   };
 
   // Handler: Reset Month Balances (Password protected: 74310)
   const handleSuccessResetMonth = () => {
-    const updated = resetMonthPayments(financial.monthKey);
-    setPayments(updated);
-    showToast('Valores do mês reiniciados com sucesso!', 'info');
+    const result = resetMonthPaymentsAndExpenses(financial.monthKey);
+    setPayments(result.payments);
+    setExpenses(result.expenses);
+    showToast('Valores do mês (recebimentos e pagamentos) reiniciados com sucesso!', 'info');
   };
 
   // Handler: Remove ALL Balances (Password protected: 74310)
   const handleSuccessRemoveAll = () => {
-    const updated = removeAllPayments();
-    setPayments(updated);
-    showToast('Todos os valores e registros de todas as contas foram removidos com sucesso!', 'info');
+    const result = removeAllPaymentsAndExpenses();
+    setPayments(result.payments);
+    setExpenses(result.expenses);
+    showToast('Todos os valores e lançamentos de todas as contas foram zerados com sucesso!', 'info');
   };
 
   return (
@@ -293,11 +377,27 @@ export default function App() {
             </button>
             <button
               type="button"
+              onClick={() => setIsServerPaymentModalOpen(true)}
+              className="hover:text-orange-400 transition-colors whitespace-nowrap shrink-0 cursor-pointer flex items-center gap-1.5"
+            >
+              <Server className="w-3.5 h-3.5 text-orange-400" />
+              <span>Pagar Servidor</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsAppPaymentModalOpen(true)}
+              className="hover:text-purple-400 transition-colors whitespace-nowrap shrink-0 cursor-pointer flex items-center gap-1.5"
+            >
+              <Smartphone className="w-3.5 h-3.5 text-purple-400" />
+              <span>Pagar App</span>
+            </button>
+            <button
+              type="button"
               onClick={() => setIsConferenceModalOpen(true)}
               className="hover:text-cyan-400 transition-colors whitespace-nowrap shrink-0 cursor-pointer flex items-center gap-1.5"
             >
               <ClipboardCheck className="w-3.5 h-3.5" />
-              <span>Conferência de Caixa</span>
+              <span>Extrato & Conferência</span>
             </button>
             <button
               type="button"
@@ -305,7 +405,7 @@ export default function App() {
               className="hover:text-pink-400 transition-colors whitespace-nowrap shrink-0 cursor-pointer flex items-center gap-1.5"
             >
               <Database className="w-3.5 h-3.5" />
-              <span>Backup & Dados</span>
+              <span>Backup</span>
             </button>
           </nav>
 
@@ -363,12 +463,20 @@ export default function App() {
           onSelectFilter={(filter) => setCurrentFilter(filter)}
         />
 
-        {/* 2. Financial Summary (Total do mês, Total diário, Bancos individuais, Conferência e Zerar com senha 74310) */}
+        {/* 2. Financial Summary (Fluxo completo: Recebimentos, Pagamento de Servidor, Pagamento de Apps, Saldos por Banco) */}
         <FinancialSummary
           monthlyTotal={financial.monthlyTotal}
           dailyTotal={financial.dailyTotal}
+          monthlyIncome={financial.monthlyIncome}
+          monthlyExpense={financial.monthlyExpense}
+          serverExpenseMonthly={financial.serverExpenseMonthly}
+          appExpenseMonthly={financial.appExpenseMonthly}
+          dailyIncome={financial.dailyIncome}
+          dailyExpense={financial.dailyExpense}
           bankSummaries={financial.bankSummaries}
           monthLabel={monthLabel}
+          onOpenPayServer={() => setIsServerPaymentModalOpen(true)}
+          onOpenPayApp={() => setIsAppPaymentModalOpen(true)}
           onOpenConference={() => setIsConferenceModalOpen(true)}
           onRequestResetMonth={() => setIsResetMonthModalOpen(true)}
           onRequestRemoveAll={() => setIsRemoveAllModalOpen(true)}
@@ -410,7 +518,7 @@ export default function App() {
             <span>Sistema de Cobrança e Gestão Mensalista</span>
           </div>
           <div className="text-[11px] text-slate-500">
-            Controle de mensalidades, alertas automáticos e backup seguro
+            Controle de mensalidades, pagamentos de servidores e aplicativos, alertas e segurança
           </div>
         </div>
       </footer>
@@ -429,7 +537,7 @@ export default function App() {
         onSave={handleSaveClient}
       />
 
-      {/* 2. Payment Modal (Confirm payment, modify date/amount/bank, auto-renew +1 month, or advance payments) */}
+      {/* 2. Client Payment Modal (Recebimento de Mensalidade / Adiantamento) */}
       <PaymentModal
         isOpen={isPaymentModalOpen}
         onClose={() => {
@@ -441,7 +549,24 @@ export default function App() {
         onConfirmPayment={handleConfirmPayment}
       />
 
-      {/* 3. Reschedule Modal (Trocar data quando quiser) */}
+      {/* 3. Server Payment Modal (Pagamento de Servidor) */}
+      <ServerPaymentModal
+        isOpen={isServerPaymentModalOpen}
+        onClose={() => setIsServerPaymentModalOpen(false)}
+        suggestions={suggestions}
+        onConfirmServerPayment={handleConfirmServerPayment}
+      />
+
+      {/* 4. App Payment Modal (Pagamento de Aplicativos) */}
+      <AppPaymentModal
+        isOpen={isAppPaymentModalOpen}
+        onClose={() => setIsAppPaymentModalOpen(false)}
+        clients={clients}
+        suggestions={suggestions}
+        onConfirmAppPayment={handleConfirmAppPayment}
+      />
+
+      {/* 5. Reschedule Modal (Trocar data quando quiser) */}
       <RescheduleModal
         isOpen={isRescheduleModalOpen}
         onClose={() => {
@@ -452,38 +577,40 @@ export default function App() {
         onReschedule={handleReschedule}
       />
 
-      {/* 4. Conference Modal (Conferência de caixa, auditoria, exportação CSV) */}
+      {/* 6. Conference Modal (Extrato completo: Recebimentos e Pagamentos de Servidor e App) */}
       <ConferenceModal
         isOpen={isConferenceModalOpen}
         onClose={() => setIsConferenceModalOpen(false)}
         payments={payments}
+        expenses={expenses}
         onDeletePayment={handleDeletePayment}
+        onDeleteExpense={handleDeleteExpense}
       />
 
-      {/* 5. Backup & Restore Modal */}
+      {/* 7. Backup & Restore Modal */}
       <BackupModal
         isOpen={isBackupModalOpen}
         onClose={() => setIsBackupModalOpen(false)}
         onDataRestored={reloadData}
       />
 
-      {/* 6. Password Modal for Resetting Month Values */}
+      {/* 8. Password Modal for Resetting Month Values */}
       <PasswordAuthModal
         isOpen={isResetMonthModalOpen}
         onClose={() => setIsResetMonthModalOpen(false)}
         title="Reiniciar Valores do Mês"
-        description="Esta ação reiniciará os valores e lançamentos financeiros do mês selecionado. Os cadastros de clientes permanecerão intactos. Digite a senha para autorizar:"
+        description="Esta ação reiniciará os valores recebidos e pagamentos efetuados do mês selecionado. Os cadastros de clientes permanecerão intactos. Digite a senha para autorizar:"
         confirmLabel="Reiniciar Valores do Mês"
         dangerLevel="warning"
         onSuccess={handleSuccessResetMonth}
       />
 
-      {/* 7. Password Modal for Removing ALL Values from All Accounts */}
+      {/* 9. Password Modal for Removing ALL Values from All Accounts */}
       <PasswordAuthModal
         isOpen={isRemoveAllModalOpen}
         onClose={() => setIsRemoveAllModalOpen(false)}
         title="Remover Totalmente Todas as Contas"
-        description="ATENÇÃO: Esta ação removerá totalmente todo o histórico financeiro e os saldos de todas as contas e bancos. Para confirmar esta limpeza completa, digite a senha de segurança:"
+        description="ATENÇÃO: Esta ação removerá totalmente todo o histórico financeiro (recebimentos, servidores e aplicativos) e os saldos de todas as contas. Para autorizar, digite a senha de segurança:"
         confirmLabel="Zerar Totalmente Todas as Contas"
         dangerLevel="danger"
         onSuccess={handleSuccessRemoveAll}

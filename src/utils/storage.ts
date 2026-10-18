@@ -1,8 +1,9 @@
-import { Client, PaymentRecord, SuggestionStore, BankSummary } from '../types';
+import { Client, PaymentRecord, ExpenseRecord, SuggestionStore, BankSummary } from '../types';
 import { getTodayISO, getCurrentMonthKey } from './date';
 
 const CLIENTS_KEY = 'LK_CLIENTS_DATA';
 const PAYMENTS_KEY = 'LK_PAYMENT_HISTORY';
+const EXPENSES_KEY = 'LK_EXPENSES_DATA';
 const SUGGESTIONS_KEY = 'LK_SUGGESTIONS';
 
 export const DEFAULT_SUGGESTIONS: SuggestionStore = {
@@ -119,6 +120,38 @@ function getInitialPayments(): PaymentRecord[] {
   ];
 }
 
+// Helper to seed sample expenses
+function getInitialExpenses(): ExpenseRecord[] {
+  const today = getTodayISO();
+  return [
+    {
+      id: 'e1',
+      type: 'server',
+      title: 'Pagamento Servidor SFL',
+      server: 'SFL',
+      amount: 25.0,
+      bank: 'Nubank',
+      date: today,
+      timestamp: Date.now() - 3600000 * 5,
+      notes: 'Recarga de créditos SFL',
+    },
+    {
+      id: 'e2',
+      type: 'app',
+      title: 'Licença IBO Player - Roberto',
+      clientName: 'Roberto Fernandes Lima',
+      app: 'IBO Player',
+      mac: '12:B4:56:88:AC:33',
+      key: '88410',
+      amount: 15.0,
+      bank: 'PicPay',
+      date: today,
+      timestamp: Date.now() - 3600000 * 3,
+      notes: 'Ativação anual do aplicativo',
+    },
+  ];
+}
+
 export function loadClients(): Client[] {
   try {
     const raw = localStorage.getItem(CLIENTS_KEY);
@@ -136,7 +169,6 @@ export function loadClients(): Client[] {
 export function saveClients(clients: Client[]): void {
   try {
     localStorage.setItem(CLIENTS_KEY, JSON.stringify(clients));
-    // Update suggestions automatically
     learnFromClients(clients);
   } catch (err) {
     console.error('Error saving clients:', err);
@@ -163,6 +195,30 @@ export function savePayments(payments: PaymentRecord[]): void {
     localStorage.setItem(PAYMENTS_KEY, JSON.stringify(payments));
   } catch (err) {
     console.error('Error saving payments:', err);
+  }
+}
+
+export function loadExpenses(): ExpenseRecord[] {
+  try {
+    const raw = localStorage.getItem(EXPENSES_KEY);
+    if (!raw) {
+      const initial = getInitialExpenses();
+      saveExpenses(initial);
+      return initial;
+    }
+    return JSON.parse(raw);
+  } catch (err) {
+    console.error('Error loading expenses:', err);
+    return [];
+  }
+}
+
+export function saveExpenses(expenses: ExpenseRecord[]): void {
+  try {
+    localStorage.setItem(EXPENSES_KEY, JSON.stringify(expenses));
+    learnFromExpenses(expenses);
+  } catch (err) {
+    console.error('Error saving expenses:', err);
   }
 }
 
@@ -219,46 +275,130 @@ export function learnFromClients(clients: Client[]): void {
   });
 }
 
+export function learnFromExpenses(expenses: ExpenseRecord[]): void {
+  const current = loadSuggestions();
+  const servers = new Set(current.servers);
+  const apps = new Set(current.apps);
+  const banks = new Set(current.banks);
+
+  expenses.forEach((e) => {
+    if (e.server?.trim()) servers.add(e.server.trim());
+    if (e.app?.trim()) apps.add(e.app.trim());
+    if (e.bank?.trim()) banks.add(e.bank.trim());
+  });
+
+  saveSuggestions({
+    ...current,
+    servers: Array.from(servers),
+    apps: Array.from(apps),
+    banks: Array.from(banks),
+  });
+}
+
 /**
- * Calculates current month total, daily total, and individual bank totals for the month.
+ * Calculates current month total, daily total, and individual bank totals
+ * accounting for both Income (Payments) and Expenses (Server & App Payments).
  */
-export function calculateFinancialSummary(payments: PaymentRecord[], monthKey = getCurrentMonthKey()) {
+export function calculateFinancialSummary(
+  payments: PaymentRecord[],
+  expenses: ExpenseRecord[] = [],
+  monthKey = getCurrentMonthKey()
+) {
   const todayStr = getTodayISO();
 
-  let monthlyTotal = 0;
-  let dailyTotal = 0;
+  let monthlyIncome = 0;
+  let monthlyExpense = 0;
+  let serverExpenseMonthly = 0;
+  let appExpenseMonthly = 0;
 
-  const bankMap: Record<string, { monthlyTotal: number; dailyTotal: number; count: number }> = {};
+  let dailyIncome = 0;
+  let dailyExpense = 0;
 
+  interface BankLedger {
+    incomeMonthly: number;
+    incomeDaily: number;
+    expenseMonthly: number;
+    expenseDaily: number;
+    count: number;
+  }
+
+  const bankMap: Record<string, BankLedger> = {};
+
+  const getOrCreateBank = (bank: string): BankLedger => {
+    const trimmed = bank?.trim() || 'Outros';
+    if (!bankMap[trimmed]) {
+      bankMap[trimmed] = {
+        incomeMonthly: 0,
+        incomeDaily: 0,
+        expenseMonthly: 0,
+        expenseDaily: 0,
+        count: 0,
+      };
+    }
+    return bankMap[trimmed];
+  };
+
+  // 1. Process Income (Payments received from clients)
   payments.forEach((p) => {
     const isThisMonth = p.paymentDate.startsWith(monthKey);
     const isToday = p.paymentDate === todayStr;
+    const ledger = getOrCreateBank(p.bank);
 
     if (isThisMonth) {
-      monthlyTotal += p.amount;
-
-      if (!bankMap[p.bank]) {
-        bankMap[p.bank] = { monthlyTotal: 0, dailyTotal: 0, count: 0 };
-      }
-      bankMap[p.bank].monthlyTotal += p.amount;
-      bankMap[p.bank].count += 1;
+      monthlyIncome += p.amount;
+      ledger.incomeMonthly += p.amount;
+      ledger.count += 1;
     }
 
     if (isToday) {
-      dailyTotal += p.amount;
-      if (!bankMap[p.bank]) {
-        bankMap[p.bank] = { monthlyTotal: 0, dailyTotal: 0, count: 0 };
-      }
-      bankMap[p.bank].dailyTotal += p.amount;
+      dailyIncome += p.amount;
+      ledger.incomeDaily += p.amount;
     }
   });
 
-  const bankSummaries: BankSummary[] = Object.keys(bankMap).map((bank) => ({
-    bank,
-    monthlyTotal: bankMap[bank].monthlyTotal,
-    dailyTotal: bankMap[bank].dailyTotal,
-    count: bankMap[bank].count,
-  }));
+  // 2. Process Expenses (Payments made for Server & Apps)
+  expenses.forEach((e) => {
+    const isThisMonth = e.date.startsWith(monthKey);
+    const isToday = e.date === todayStr;
+    const ledger = getOrCreateBank(e.bank);
+
+    if (isThisMonth) {
+      monthlyExpense += e.amount;
+      ledger.expenseMonthly += e.amount;
+      ledger.count += 1;
+
+      if (e.type === 'server') {
+        serverExpenseMonthly += e.amount;
+      } else {
+        appExpenseMonthly += e.amount;
+      }
+    }
+
+    if (isToday) {
+      dailyExpense += e.amount;
+      ledger.expenseDaily += e.amount;
+    }
+  });
+
+  // Build bank summary list
+  const bankSummaries: BankSummary[] = Object.keys(bankMap).map((bank) => {
+    const data = bankMap[bank];
+    const netMonthly = data.incomeMonthly - data.expenseMonthly;
+    const netDaily = data.incomeDaily - data.expenseDaily;
+
+    return {
+      bank,
+      incomeMonthly: data.incomeMonthly,
+      incomeDaily: data.incomeDaily,
+      expenseMonthly: data.expenseMonthly,
+      expenseDaily: data.expenseDaily,
+      netMonthly,
+      netDaily,
+      monthlyTotal: netMonthly,
+      dailyTotal: netDaily,
+      count: data.count,
+    };
+  });
 
   // Ensure Nubank and PicPay appear in bankSummaries even if currently 0
   const defaultBanks = ['Nubank', 'PicPay'];
@@ -266,6 +406,12 @@ export function calculateFinancialSummary(payments: PaymentRecord[], monthKey = 
     if (!bankSummaries.some((b) => b.bank.toLowerCase() === defaultBank.toLowerCase())) {
       bankSummaries.unshift({
         bank: defaultBank,
+        incomeMonthly: 0,
+        incomeDaily: 0,
+        expenseMonthly: 0,
+        expenseDaily: 0,
+        netMonthly: 0,
+        netDaily: 0,
         monthlyTotal: 0,
         dailyTotal: 0,
         count: 0,
@@ -273,9 +419,24 @@ export function calculateFinancialSummary(payments: PaymentRecord[], monthKey = 
     }
   });
 
+  const netMonthly = monthlyIncome - monthlyExpense;
+  const netDaily = dailyIncome - dailyExpense;
+
   return {
-    monthlyTotal,
-    dailyTotal,
+    // Net
+    monthlyTotal: netMonthly,
+    dailyTotal: netDaily,
+    netMonthly,
+    netDaily,
+    // Income Breakdown
+    monthlyIncome,
+    dailyIncome,
+    // Expense Breakdown
+    monthlyExpense,
+    dailyExpense,
+    serverExpenseMonthly,
+    appExpenseMonthly,
+    // Bank details
     bankSummaries,
     monthKey,
   };
@@ -290,33 +451,40 @@ export function verifyAdminPassword(password: string): boolean {
 }
 
 /**
- * Resets values for the given month (removes payment records in that month)
+ * Resets values for the given month (removes both payment records and expenses in that month)
  */
-export function resetMonthPayments(monthKey: string): PaymentRecord[] {
+export function resetMonthPaymentsAndExpenses(monthKey: string): { payments: PaymentRecord[]; expenses: ExpenseRecord[] } {
   const payments = loadPayments();
-  const filtered = payments.filter((p) => !p.paymentDate.startsWith(monthKey));
-  savePayments(filtered);
-  return filtered;
+  const filteredPayments = payments.filter((p) => !p.paymentDate.startsWith(monthKey));
+  savePayments(filteredPayments);
+
+  const expenses = loadExpenses();
+  const filteredExpenses = expenses.filter((e) => !e.date.startsWith(monthKey));
+  saveExpenses(filteredExpenses);
+
+  return { payments: filteredPayments, expenses: filteredExpenses };
 }
 
 /**
- * Completely clears ALL payment values across all bank accounts
+ * Completely clears ALL payment values and expenses across all bank accounts
  */
-export function removeAllPayments(): PaymentRecord[] {
+export function removeAllPaymentsAndExpenses(): { payments: PaymentRecord[]; expenses: ExpenseRecord[] } {
   savePayments([]);
-  return [];
+  saveExpenses([]);
+  return { payments: [], expenses: [] };
 }
 
 /**
- * Export full backup as JSON string
+ * Export full backup as JSON string including expenses
  */
 export function exportBackupData(): string {
   const data = {
     app: 'LK-Clientes',
-    version: '1.0.0',
+    version: '1.1.0',
     exportedAt: new Date().toISOString(),
     clients: loadClients(),
     payments: loadPayments(),
+    expenses: loadExpenses(),
     suggestions: loadSuggestions(),
   };
   return JSON.stringify(data, null, 2);
@@ -325,7 +493,10 @@ export function exportBackupData(): string {
 /**
  * Import backup data from parsed JSON
  */
-export function importBackupData(jsonContent: string, mode: 'replace' | 'merge'): { success: boolean; message: string; clientCount?: number; paymentCount?: number } {
+export function importBackupData(
+  jsonContent: string,
+  mode: 'replace' | 'merge'
+): { success: boolean; message: string; clientCount?: number; paymentCount?: number; expenseCount?: number } {
   try {
     const data = JSON.parse(jsonContent);
     if (!data.clients || !Array.isArray(data.clients)) {
@@ -335,11 +506,12 @@ export function importBackupData(jsonContent: string, mode: 'replace' | 'merge')
     if (mode === 'replace') {
       saveClients(data.clients);
       savePayments(Array.isArray(data.payments) ? data.payments : []);
+      saveExpenses(Array.isArray(data.expenses) ? data.expenses : []);
       if (data.suggestions) {
         saveSuggestions(data.suggestions);
       }
     } else {
-      // Merge
+      // Merge clients
       const existingClients = loadClients();
       const existingClientIds = new Set(existingClients.map((c) => c.id));
       const mergedClients = [...existingClients];
@@ -351,6 +523,7 @@ export function importBackupData(jsonContent: string, mode: 'replace' | 'merge')
       });
       saveClients(mergedClients);
 
+      // Merge payments
       const existingPayments = loadPayments();
       const existingPaymentIds = new Set(existingPayments.map((p) => p.id));
       const mergedPayments = [...existingPayments];
@@ -363,6 +536,20 @@ export function importBackupData(jsonContent: string, mode: 'replace' | 'merge')
         });
       }
       savePayments(mergedPayments);
+
+      // Merge expenses
+      const existingExpenses = loadExpenses();
+      const existingExpenseIds = new Set(existingExpenses.map((e) => e.id));
+      const mergedExpenses = [...existingExpenses];
+
+      if (Array.isArray(data.expenses)) {
+        (data.expenses as ExpenseRecord[]).forEach((ne) => {
+          if (!existingExpenseIds.has(ne.id)) {
+            mergedExpenses.push(ne);
+          }
+        });
+      }
+      saveExpenses(mergedExpenses);
     }
 
     return {
@@ -370,6 +557,7 @@ export function importBackupData(jsonContent: string, mode: 'replace' | 'merge')
       message: 'Backup importado com sucesso!',
       clientCount: data.clients.length,
       paymentCount: (data.payments || []).length,
+      expenseCount: (data.expenses || []).length,
     };
   } catch (err: any) {
     return { success: false, message: `Erro ao processar arquivo: ${err.message}` };
