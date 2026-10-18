@@ -316,18 +316,27 @@ export const ClientList: React.FC<ClientListProps> = ({
                       )}
                     </td>
                     <td className="py-2.5 px-3 font-mono">
-                      <span
-                        className={
-                          dateInfo.status === 'today'
-                            ? 'text-pink-400 font-bold'
-                            : dateInfo.status === 'overdue'
-                            ? 'text-rose-400 font-bold'
-                            : 'text-slate-200'
-                        }
+                      <button
+                        type="button"
+                        onClick={() => onReschedule(client)}
+                        className="text-left group"
+                        title="Clique para alterar a data no calendário (aceita meses passados)"
                       >
-                        {formatDateBR(client.dueDate)}
-                      </span>
-                      <div className="text-[10px] text-slate-400">{dateInfo.label}</div>
+                        <span
+                          className={`underline decoration-dotted underline-offset-2 group-hover:text-cyan-300 transition-colors ${
+                            dateInfo.status === 'today'
+                              ? 'text-pink-400 font-bold'
+                              : dateInfo.status === 'overdue'
+                              ? 'text-rose-400 font-bold'
+                              : 'text-slate-200'
+                          }`}
+                        >
+                          {formatDateBR(client.dueDate)}
+                        </span>
+                        <div className="text-[10px] text-slate-400 group-hover:text-cyan-400">
+                          {dateInfo.label} 📅
+                        </div>
+                      </button>
                     </td>
                     <td className="py-2.5 px-3 text-right font-mono font-bold text-emerald-400 tabular-nums">
                       {formatBRL(client.price)}

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Smartphone, User, Hash, Key, DollarSign, Calendar, Landmark, X, CheckCircle2 } from 'lucide-react';
 import { Client, SuggestionStore } from '../types';
 import { getTodayISO, formatBRL } from '../utils/date';
+import { CalendarPicker } from './CalendarPicker';
 
 interface AppPaymentModalProps {
   isOpen: boolean;
@@ -216,16 +217,10 @@ export const AppPaymentModal: React.FC<AppPaymentModalProps> = ({
 
             {/* Data */}
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
-                <Calendar className="w-3.5 h-3.5 text-pink-400" />
-                <span>Data do Pagamento *</span>
-              </label>
-              <input
-                type="date"
-                required
+              <CalendarPicker
+                label="Data do Pagamento (Aceita meses passados)"
                 value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="w-full px-3.5 py-2 text-sm bg-slate-950 border border-slate-700 rounded-lg text-white font-mono focus:outline-none focus:border-pink-500"
+                onChange={(d) => setDate(d)}
               />
             </div>
           </div>

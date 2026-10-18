@@ -184,11 +184,18 @@ export const ClientCard: React.FC<ClientCardProps> = ({
 
         {/* Due date and Value */}
         <div className="flex items-center justify-between py-1 text-xs">
-          <div className="flex items-center gap-1.5 text-slate-300">
-            <Calendar className="w-3.5 h-3.5 text-pink-400" />
+          <button
+            type="button"
+            onClick={() => onReschedule(client)}
+            className="flex items-center gap-1.5 text-slate-300 hover:text-cyan-300 group transition-colors text-left"
+            title="Clique para abrir o calendário e alterar a data de vencimento (aceita meses passados)"
+          >
+            <Calendar className="w-3.5 h-3.5 text-pink-400 group-hover:text-cyan-300 transition-colors" />
             <span>Vencimento:</span>
-            <strong className="text-white font-mono">{formatDateBR(client.dueDate)}</strong>
-          </div>
+            <strong className="text-white group-hover:text-cyan-300 font-mono underline decoration-dotted underline-offset-4">
+              {formatDateBR(client.dueDate)}
+            </strong>
+          </button>
 
           <div className="text-sm font-bold text-emerald-400 font-mono tabular-nums">
             {formatBRL(client.price)}

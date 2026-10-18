@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { CheckCircle2, Calendar, DollarSign, Landmark, X, MessageSquare, ArrowRight, Zap, Sparkles } from 'lucide-react';
 import { Client, PaymentRecord, SuggestionStore } from '../types';
 import { getTodayISO, addMonthsPreservingDay, formatBRL, formatDateBR } from '../utils/date';
+import { CalendarPicker } from './CalendarPicker';
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -169,16 +170,10 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Payment Date */}
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
-                <Calendar className="w-3.5 h-3.5 text-pink-400" />
-                <span>Data do Recebimento</span>
-              </label>
-              <input
-                type="date"
-                required
+              <CalendarPicker
+                label="Data do Recebimento (Aceita meses passados)"
                 value={paymentDate}
-                onChange={(e) => setPaymentDate(e.target.value)}
-                className="w-full px-3 py-2 text-sm bg-slate-950 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-pink-500 font-mono"
+                onChange={(d) => setPaymentDate(d)}
               />
             </div>
 
@@ -240,23 +235,17 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
           {/* Next Due Date (Auto + advanceMonths) */}
           <div className="rounded-xl border border-cyan-500/20 bg-cyan-950/20 p-3.5">
-            <label className="block text-xs font-semibold text-cyan-300 mb-1.5 flex items-center gap-1.5">
-              <ArrowRight className="w-3.5 h-3.5" />
-              <span>
-                {advanceMonths > 1
-                  ? `Novo Vencimento (+${advanceMonths} Meses Adiantados)`
-                  : 'Próximo Vencimento (Mês Seguinte)'}
-              </span>
-            </label>
             <p className="text-[11px] text-slate-400 mb-2">
-              Agendado para <strong className="text-white font-mono">{formatDateBR(nextDueDate)}</strong>. Você pode ajustar a data livremente se desejar:
+              Agendado para <strong className="text-white font-mono">{formatDateBR(nextDueDate)}</strong>. Você pode alterar a data livremente para qualquer dia ou mês:
             </p>
-            <input
-              type="date"
-              required
+            <CalendarPicker
+              label={
+                advanceMonths > 1
+                  ? `Novo Vencimento (+${advanceMonths} Meses Adiantados)`
+                  : 'Próximo Vencimento (Mês Seguinte ou Selecione)'
+              }
               value={nextDueDate}
-              onChange={(e) => setNextDueDate(e.target.value)}
-              className="w-full px-3 py-2 text-sm bg-slate-950 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-cyan-400 font-mono"
+              onChange={(d) => setNextDueDate(d)}
             />
           </div>
 

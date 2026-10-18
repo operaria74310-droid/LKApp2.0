@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { User, Server, Smartphone, Key, Hash, DollarSign, Landmark, ShieldCheck, Calendar, Phone, FileText, X } from 'lucide-react';
 import { Client, SuggestionStore } from '../types';
 import { getTodayISO } from '../utils/date';
+import { CalendarPicker } from './CalendarPicker';
 
 interface ClientFormModalProps {
   isOpen: boolean;
@@ -401,11 +402,19 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
 
             {/* Due Date (agendamento de cobrança) */}
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
-                <Calendar className="w-3.5 h-3.5 text-pink-400" />
-                <span>Data de Vencimento / Cobrança</span>
-              </label>
               <div className="flex gap-1.5 mb-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const d = dueDate ? new Date(dueDate + 'T12:00:00') : new Date();
+                    d.setMonth(d.getMonth() - 1);
+                    setDueDate(d.toISOString().split('T')[0]);
+                  }}
+                  className="px-2 py-1 text-xs font-medium rounded-md bg-slate-800 text-amber-300 border border-slate-700 hover:text-white"
+                  title="Colocar data do mês passado"
+                >
+                  -1 Mês Passado
+                </button>
                 <button
                   type="button"
                   onClick={() => setDueDate(getTodayISO())}
@@ -425,12 +434,10 @@ export const ClientFormModal: React.FC<ClientFormModalProps> = ({
                   +30 Dias
                 </button>
               </div>
-              <input
-                type="date"
-                required
+              <CalendarPicker
+                label="Data de Vencimento / Cobrança"
                 value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                className="w-full px-3.5 py-2 text-sm bg-slate-950 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-pink-500 font-mono"
+                onChange={(d) => setDueDate(d)}
               />
             </div>
           </div>

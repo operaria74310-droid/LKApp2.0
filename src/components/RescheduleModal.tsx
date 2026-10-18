@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, X, ArrowRight } from 'lucide-react';
 import { Client } from '../types';
 import { getTodayISO, formatDateBR, addDays, addOneMonthPreservingDay } from '../utils/date';
+import { CalendarPicker } from './CalendarPicker';
 
 interface RescheduleModalProps {
   isOpen: boolean;
@@ -67,13 +68,25 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-              Atalhos Rápidos de Reagendamento
+              Atalhos Rápidos de Vencimento
             </label>
-            <div className="grid grid-cols-3 gap-1.5 mb-2.5">
+            <div className="grid grid-cols-3 gap-1.5 mb-3">
+              <button
+                type="button"
+                onClick={() => {
+                  const d = client.dueDate ? new Date(client.dueDate + 'T12:00:00') : new Date();
+                  d.setMonth(d.getMonth() - 1);
+                  setNewDueDate(d.toISOString().split('T')[0]);
+                }}
+                className="py-1.5 px-2 text-xs font-medium rounded-md bg-slate-800 text-amber-300 border border-slate-700 hover:text-white hover:border-slate-600"
+                title="Voltar vencimento para o mês passado"
+              >
+                -1 Mês Passado
+              </button>
               <button
                 type="button"
                 onClick={() => setNewDueDate(getTodayISO())}
-                className="py-1.5 px-2 text-xs font-medium rounded-md bg-slate-800 text-slate-300 border border-slate-700 hover:text-white hover:border-slate-600"
+                className="py-1.5 px-2 text-xs font-medium rounded-md bg-slate-800 text-cyan-300 border border-slate-700 hover:text-white hover:border-slate-600 font-semibold"
               >
                 Hoje
               </button>
@@ -101,22 +114,17 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
               <button
                 type="button"
                 onClick={() => setNewDueDate(addOneMonthPreservingDay(client.dueDate))}
-                className="py-1.5 px-2 text-xs font-medium rounded-md bg-slate-800 text-slate-300 border border-slate-700 hover:text-white hover:border-slate-600 col-span-2"
+                className="py-1.5 px-2 text-xs font-medium rounded-md bg-slate-800 text-slate-300 border border-slate-700 hover:text-white hover:border-slate-600"
               >
-                +1 Mês ({formatDateBR(addOneMonthPreservingDay(client.dueDate))})
+                +1 Mês
               </button>
             </div>
 
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
-              <Clock className="w-3.5 h-3.5 text-cyan-400" />
-              <span>Nova Data Selecionada</span>
-            </label>
-            <input
-              type="date"
-              required
+            {/* Interactive Calendar Picker */}
+            <CalendarPicker
+              label="Calendário / Data Selecionada (Permite meses passados)"
               value={newDueDate}
-              onChange={(e) => setNewDueDate(e.target.value)}
-              className="w-full px-3 py-2 text-sm bg-slate-950 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-cyan-400 font-mono"
+              onChange={(d) => setNewDueDate(d)}
             />
           </div>
 
