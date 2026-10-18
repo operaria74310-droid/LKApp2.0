@@ -563,3 +563,44 @@ export function importBackupData(
     return { success: false, message: `Erro ao processar arquivo: ${err.message}` };
   }
 }
+
+const SNAPSHOT_KEY = 'LK_LOCAL_BACKUP_SNAPSHOT';
+
+export interface LocalSnapshotInfo {
+  timestamp: string;
+  clientCount: number;
+  paymentCount: number;
+  expenseCount: number;
+}
+
+export function saveLocalSnapshot(): LocalSnapshotInfo {
+  const json = exportBackupData();
+  const info: LocalSnapshotInfo = {
+    timestamp: new Date().toISOString(),
+    clientCount: loadClients().length,
+    paymentCount: loadPayments().length,
+    expenseCount: loadExpenses().length,
+  };
+  localStorage.setItem(SNAPSHOT_KEY, json);
+  localStorage.setItem(SNAPSHOT_KEY + '_INFO', JSON.stringify(info));
+  return info;
+}
+
+export function getLocalSnapshotInfo(): LocalSnapshotInfo | null {
+  try {
+    const raw = localStorage.getItem(SNAPSHOT_KEY + '_INFO');
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+export function restoreLocalSnapshot(mode: 'replace' | 'merge') {
+  const raw = localStorage.getItem(SNAPSHOT_KEY);
+  if (!raw) {
+    return { success: false, message: 'Nenhum ponto de restauração salvo localmente.' };
+  }
+  return importBackupData(raw, mode);
+}
+
